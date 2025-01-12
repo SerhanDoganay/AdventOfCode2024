@@ -10,7 +10,7 @@ namespace AdventOfCode2024
     {
         public static void main()
         {
-            string[] lines = File.ReadAllLines(Program.INPUT_DIR + "in16.txt");
+            string[] lines = File.ReadAllLines(Program.INPUT_DIR + "input16.txt");
             int numColumns = lines[0].Length; // How many characters wide?
             int numRows = lines.Length; // How many characters tall?
 
@@ -138,10 +138,12 @@ namespace AdventOfCode2024
                 }
             }
 
+            // Prints grid with node letters
             /*
-            foreach (KeyValuePair<int, int> node in nodes)
+            for (int i = 0; i < nodes.Count; i++)
             {
-                charGrid[node.Key, node.Value] = (char)(nodes.IndexOf(node) + 'A');
+                KeyValuePair<int, int> node = nodes[i];
+                charGrid[node.Key, node.Value] = (char)(i > 25 ? (i - 26 + 'a') : (i + 'A'));
             }
             for (int y = 0; y < numRows; y++)
             {
@@ -153,7 +155,89 @@ namespace AdventOfCode2024
                 Console.WriteLine(line);
             }*/
 
-            ;
+            // Dijkstra (modified to prioritize number of turns over path length)
+            KeyValuePair<KeyValuePair<int, int>, List<int>>[] shortestPaths = new KeyValuePair<KeyValuePair<int, int>, List<int>>[nodes.Count]; // Key: (Key=distance, Value=numturns); Value: path from start node to end node. The indicies of this array represent the end node indices
+            for (int i = 0; i < shortestPaths.Length; i++)
+                shortestPaths[i] = new KeyValuePair<KeyValuePair<int, int>, List<int>>(new KeyValuePair<int, int>(int.MaxValue, int.MaxValue), new List<int>());
+
+            Queue<int> nodesToVisit = new Queue<int>();
+            nodesToVisit.Enqueue(0); // Add the starting node first
+            while (nodesToVisit.Count > 0)
+            {
+                int i = nodesToVisit.Dequeue(); // Current node
+
+                // Get current distance traveled
+                if (i == 0)
+                    shortestPaths[i] = new KeyValuePair<KeyValuePair<int, int>, List<int>>(new KeyValuePair<int, int>(0, 0), new List<int>() { 0 }); // If this is the starting node, the distance to get here is 0
+
+                int distanceTraveled = shortestPaths[i].Key.Key;
+                int numTurns = shortestPaths[i].Key.Value;
+
+                // Which nodes are adjacent to this one?
+                List<KeyValuePair<KeyValuePair<int, int>, int>> incidentPaths = paths.Where(path => path.Key.Key == i || path.Key.Value == i).ToList();
+                for (int pathID = 0; pathID < incidentPaths.Count; pathID++)
+                {
+                    KeyValuePair<KeyValuePair<int, int>, int> path = incidentPaths[pathID];
+                    int neighbor = path.Key.Key == i ? path.Key.Value : path.Key.Key;
+
+                    // Is this going to cost us another turn?
+                    // First of all, what direction were we traveling up to now?
+                    int currDX = nodes[neighbor].Key - nodes[i].Key;
+                    int currDY = nodes[neighbor].Value - nodes[i].Value;
+                    int newTurns = 0;
+
+                    if (shortestPaths[i].Value.Count > 1)
+                    {
+                        KeyValuePair<int, int> prevNode = nodes[shortestPaths[i].Value[shortestPaths[i].Value.Count - 2]];
+                        int oldDX = nodes[i].Key - prevNode.Key;
+                        int oldDY = nodes[i].Value - prevNode.Value;
+
+                        if (currDX != 0) currDX /= Math.Abs(currDX);
+                        if (currDY != 0) currDY /= Math.Abs(currDY);
+                        if (oldDX != 0) oldDX /= Math.Abs(oldDX);
+                        if (oldDY != 0) oldDY /= Math.Abs(oldDY);
+
+                        if (currDX != oldDX || currDY != oldDY)
+                            newTurns = 1;
+                    }
+                    else
+                    {
+                        // This is the second node, in which there is no history to check.
+                        // Are we heading east?
+                        if (currDX <= 0)
+                            newTurns = 1; // We're not; we're going to need to turn
+                    }
+
+                    int distanceToNeighbor = distanceTraveled + path.Value;
+                    int newTotalTurns = numTurns + newTurns;
+
+                    if (newTotalTurns <= shortestPaths[neighbor].Key.Value)
+                    {
+                        if (newTotalTurns == shortestPaths[neighbor].Key.Value)
+                        {
+                            if (distanceToNeighbor < shortestPaths[neighbor].Key.Key)
+                            {
+                                // We found a shorter path to this node!
+                                shortestPaths[neighbor] = new KeyValuePair<KeyValuePair<int, int>, List<int>>(new KeyValuePair<int, int>(distanceToNeighbor, newTotalTurns), shortestPaths[i].Value.Append(neighbor).ToList());
+                                nodesToVisit.Enqueue(neighbor);
+                            }
+                        }
+                        else
+                        {
+                            // We found a path with less turns to this node!
+                            shortestPaths[neighbor] = new KeyValuePair<KeyValuePair<int, int>, List<int>>(new KeyValuePair<int, int>(distanceToNeighbor, newTotalTurns), shortestPaths[i].Value.Append(neighbor).ToList());
+                            nodesToVisit.Enqueue(neighbor);
+                        }
+                    }
+                    
+                }
+            }
+
+            // Calculate score
+            KeyValuePair<KeyValuePair<int, int>, List<int>> finalPath = shortestPaths[nodes.IndexOf(endTile)];
+            int score = finalPath.Key.Value * 1000 + finalPath.Key.Key;
+
+            Console.WriteLine(score);
         }
     }
 }
