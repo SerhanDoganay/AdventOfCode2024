@@ -9,7 +9,7 @@ namespace AdventOfCode2024
         static void Main(string[] args)
         {
             INPUT_DIR = args[0]; // The directory holding the input files (include '/')
-            Day16.main(); // Change the day number to work through other days
+            Day17.main(); // Change the day number to work through other days
         }
     }
 }
